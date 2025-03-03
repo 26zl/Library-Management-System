@@ -16,9 +16,8 @@ import java.io.IOException;
 /**
  * LibraryManagementSystem is a JavaFX application for managing a library.
  * It provides a user interface to display books in a table and allows users to add, borrow, return,
- * and delete books. It also logs certain actions to a file.
+ * delete, and search for books. It also logs certain actions to a file.
  */
-
 public class LibraryManagementSystem extends Application {
     private LibraryManager libMgr;
     private TableView<Book> table;
@@ -29,8 +28,10 @@ public class LibraryManagementSystem extends Application {
         libMgr = new LibraryManager();
         data = FXCollections.observableArrayList(libMgr.getBooks());
 
-        //Set up table columns
+        // Set up table columns
         table = new TableView<>();
+        table.setItems(data);
+
         TableColumn<Book, Integer> idCol = new TableColumn<>("ID");
         idCol.setCellValueFactory(new PropertyValueFactory<>("id"));
         TableColumn<Book, String> titleCol = new TableColumn<>("Title");
@@ -47,9 +48,8 @@ public class LibraryManagementSystem extends Application {
         dateCol.setCellValueFactory(new PropertyValueFactory<>("date"));
 
         table.getColumns().addAll(idCol, titleCol, authorCol, publisherCol, borCol, borrowerCol, dateCol);
-        table.setItems(data);
 
-        //Section to add a new book
+        // Section to add a new book
         TextField titleField = new TextField();
         titleField.setPromptText("Title");
         TextField authorField = new TextField();
@@ -71,7 +71,20 @@ public class LibraryManagementSystem extends Application {
             }
         });
 
-        //Section to borrow a book
+        // Section to search for a book
+        TextField searchField = new TextField();
+        searchField.setPromptText("Search by Title or Author");
+        Button searchBtn = new Button("Search");
+        searchBtn.setOnAction(e -> {
+            String query = searchField.getText().trim();
+            if (!query.isEmpty()) {
+                data.setAll(libMgr.searchBooks(query));
+            } else {
+                refreshTable();
+            }
+        });
+
+        // Section to borrow a book
         TextField borrowIdField = new TextField();
         borrowIdField.setPromptText("ID to borrow");
         TextField borrowerField = new TextField();
@@ -94,7 +107,7 @@ public class LibraryManagementSystem extends Application {
             }
         });
 
-        //Section to return a book
+        // Section to return a book
         TextField returnIdField = new TextField();
         returnIdField.setPromptText("ID to return");
         Button returnBtn = new Button("Return");
@@ -113,19 +126,22 @@ public class LibraryManagementSystem extends Application {
             }
         });
 
-        //Section to delete a book
+        // Section to delete a book with confirmation
         TextField deleteIdField = new TextField();
         deleteIdField.setPromptText("ID to delete");
         Button deleteBtn = new Button("Delete");
         deleteBtn.setOnAction(e -> {
             try {
                 int bid = Integer.parseInt(deleteIdField.getText().trim());
-                if (libMgr.deleteBook(bid)) {
+                Alert alert = new Alert(Alert.AlertType.CONFIRMATION, "Are you sure you want to delete this book?",
+                        ButtonType.YES, ButtonType.NO);
+                alert.setHeaderText("Delete Confirmation");
+                alert.showAndWait();
+
+                if (alert.getResult() == ButtonType.YES && libMgr.deleteBook(bid)) {
                     logBackup("Deleted book ID " + bid);
                     refreshTable();
                     deleteIdField.clear();
-                } else {
-                    showAlert("Error", "Failed to delete.");
                 }
             } catch (NumberFormatException ex) {
                 showAlert("Error", "Invalid ID for deletion.");
@@ -133,35 +149,39 @@ public class LibraryManagementSystem extends Application {
         });
 
         VBox addBox = new VBox(5, new Label("Add Book:"), titleField, authorField, publisherField, addBtn);
+        VBox searchBox = new VBox(5, new Label("Search Book:"), searchField, searchBtn);
         VBox borrowBox = new VBox(5, new Label("Borrow:"), borrowIdField, borrowerField, borrowBtn);
         VBox returnBox = new VBox(5, new Label("Return:"), returnIdField, returnBtn);
         VBox deleteBox = new VBox(5, new Label("Delete:"), deleteIdField, deleteBtn);
 
-        VBox root = new VBox(10, table, addBox, borrowBox, returnBox, deleteBox);
-        Scene scene = new Scene(root, 600, 650);
+        VBox root = new VBox(10, table, searchBox, addBox, borrowBox, returnBox, deleteBox);
+        Scene scene = new Scene(root, 650, 700);
         stage.setTitle("Library System");
         stage.setScene(scene);
         stage.show();
     }
 
-    //Refresh table data
+    // Refresh table data
     private void refreshTable() {
         data.setAll(libMgr.getBooks());
+        if (data.isEmpty()) {
+            showAlert("Library Empty", "No books found in the system.");
+        }
     }
 
-    //Simple error alert
+    // Simple error alert
     private void showAlert(String title, String msg) {
         Alert alert = new Alert(Alert.AlertType.ERROR, msg, ButtonType.OK);
         alert.setHeaderText(title);
         alert.showAndWait();
     }
 
-    //Log action to a file
+    // Log action to a file
     private void logBackup(String act) {
         try (BufferedWriter bw = new BufferedWriter(new FileWriter("library.log", true))) {
             bw.write(java.time.LocalDateTime.now() + " - " + act + "\n");
         } catch (IOException e) {
-            System.err.println("Log write failed.");
+            System.err.println("Error writing to log file: " + e.getMessage());
         }
     }
 

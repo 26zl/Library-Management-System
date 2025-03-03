@@ -6,7 +6,6 @@ import java.util.List;
  * LibraryManager acts as a wrapper for the DatabaseHandler,
  * providing simplified methods for managing library operations.
  */
-
 public class LibraryManager {
     private final DatabaseHandler db;
 
@@ -20,6 +19,10 @@ public class LibraryManager {
 
     public List<Book> getBooks() {
         return db.getAllBooks();
+    }
+
+    public List<Book> searchBooks(String query) {
+        return db.searchBooks(query);
     }
 
     public boolean borrowBook(int id, String borrower) {
